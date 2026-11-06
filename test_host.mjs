@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {apply} from './host.js';
+
+const events=new Map(), cleanups=[], routes=[], commands=[], tools=[], specs=[];
+let disposed=0, mode='workspace-write';
+const shell={resolve(spec){specs.push(spec);return spec;},async execute(spec){return {async result(){return {exitCode:0,stdout:{text:JSON.stringify({ok:true,value:{kind:'docx',path:'sample.docx'}})},stderr:{text:''}};}};}};
+const services={shell,sandboxPolicy:{resolve(){return {mode,workspaceRoot:'C:/workspace'};}}};
+function agent(id){return {id,session:{},ctx:{get:key=>services[key],inject(deps,body){assert.deepEqual(deps,['commands','tools','shell','sandboxPolicy']);body({commands:{register:value=>commands.push(value)},tools:{register:value=>tools.push(value)}});return {dispose(){disposed++;}};}}};}
+const first=agent('first');
+const ctx={connection:{fetch:{register:value=>routes.push(value)}},agents:{list:()=>[first],get:id=>id==='first'?first:undefined},on:(name,fn)=>events.set(name,fn),effect:fn=>cleanups.push(fn())};
+apply(ctx);
+assert.equal(routes.length,1);
+assert.equal(tools[0].name,'office_canvas_edit');
+const result=JSON.parse(await tools[0].execute({request:JSON.stringify({action:'read',path:'sample.docx',workspaceRoot:'C:/outside'})},{agent:first}));
+assert.equal(result.ok,true);
+assert.equal(JSON.parse(specs.at(-1).stdin).workspaceRoot,'C:/workspace');
+assert.equal(specs.at(-1).sandboxPolicy.mode,'workspace-write');
+assert.equal(specs.at(-1).workdir,'C:/workspace');
+mode='read-only';
+await assert.rejects(tools[0].execute({request:JSON.stringify({action:'save',path:'sample.docx'})},{agent:first}),/read-only/);
+mode='workspace-write';
+let response=await routes[0].fetch(new Request('http://localhost/api/office-canvas.operation',{method:'POST',body:JSON.stringify({sessionId:'unknown',request:{action:'read',path:'sample.docx'}})}));
+assert.equal(response.status,400);
+response=await routes[0].fetch(new Request('http://localhost/api/office-canvas.operation',{method:'POST',body:JSON.stringify({sessionId:'first',request:{action:'read',path:'sample.docx'}})}));
+assert.equal((await response.json()).ok,true);
+const other=agent('second');
+events.get('agent/created')({agent:other});
+events.get('agent/created')({agent:other});
+assert.equal(tools.length,2);
+events.get('agent/disposed')({agent:other});
+assert.equal(disposed,1);
+for(const cleanup of cleanups)await cleanup();
+assert.equal(disposed,2);
+console.log('Host checks passed: sandbox policy, API envelopes, tool registration, duplicate mount and Fiber disposal.');

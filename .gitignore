@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+node_modules/
+.env
+.env.*
+*.log
+.office-canvas-*/
+.dsh-office-*/
+.dom-chrome-profile-*/

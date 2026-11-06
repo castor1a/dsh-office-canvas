@@ -1,0 +1,4 @@
+- insert:
+    - id: local-office-canvas
+      name: '@local/dsh-office-canvas'
+      config: {}

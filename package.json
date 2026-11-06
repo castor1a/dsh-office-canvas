@@ -1,0 +1,11 @@
+{
+  "name": "@local/dsh-office-canvas",
+  "version": "0.2.1",
+  "scripts": {"test:client": "node test_client.mjs", "test:host": "node test_host.mjs", "test:backend": "python -m unittest -v test_backend"},
+  "private": true,
+  "type": "module",
+  "description": "Office canvas with original-layout annotations and local DOCX/PPTX editing",
+  "exports": {".": "./host.js", "./client": "./client.js", "./locale/*.json": "./locale/*.json", "./icon": "./icon.svg"},
+  "files": ["host.js", "client.js", "backend.py", "render.mjs", "cordis.patch.yml", "locale/*.json", "icon.svg", "README.md"],
+  "dsh": {"bundle": {"patch": "./cordis.patch.yml"}, "client": {"platform": "web", "immediately": true, "inject": ["@deepseek-ai/dsh-client-ui-sidebar-documentpreview", "@deepseek-ai/dsh-client-ui-conversation"]}}
+}
